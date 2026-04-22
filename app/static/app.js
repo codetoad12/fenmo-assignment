@@ -75,3 +75,59 @@ filterEl.addEventListener('input', loadExpenses);
 sortEl.addEventListener('change', loadExpenses);
 
 loadExpenses();
+
+['amount', 'category', 'description', 'date'].forEach(id => {
+  document.getElementById(id).addEventListener('input', resetKey);
+});
+
+document.getElementById('date').valueAsDate = new Date();
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  formError.textContent = '';
+  formError.classList.add('hidden');
+  submitBtn.disabled = true;
+
+  const body = {
+    amount: parseFloat(form.amount.value),
+    category: form.category.value.trim(),
+    description: form.description.value.trim(),
+    date: form.date.value,
+  };
+
+  try {
+    const res = await fetch('/expenses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKey,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (res.status === 201 || res.status === 200) {
+      form.reset();
+      resetKey();
+      await loadExpenses();
+    } else if (res.status === 409) {
+      formError.textContent =
+        'Conflict: this idempotency key was used with different data.';
+      formError.classList.remove('hidden');
+    } else if (res.status === 422) {
+      const data = await res.json();
+      const msgs = (data.detail || [])
+        .map(d => d.msg).join(', ');
+      formError.textContent = msgs || 'Validation error.';
+      formError.classList.remove('hidden');
+    } else {
+      formError.textContent = `Unexpected error (${res.status}).`;
+      formError.classList.remove('hidden');
+    }
+  } catch (err) {
+    formError.textContent =
+      `Network error: ${err.message}. Click submit to retry.`;
+    formError.classList.remove('hidden');
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
