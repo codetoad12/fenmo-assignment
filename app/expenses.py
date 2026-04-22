@@ -3,6 +3,7 @@ import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -12,6 +13,21 @@ from .database import get_connection
 from .models import ExpenseIn, ExpenseOut
 
 router = APIRouter()
+
+
+def _amount_to_paise(amount: Decimal) -> int:
+    return int(amount * Decimal('100'))
+
+
+def _paise_to_amount(paise: int) -> Decimal:
+    return Decimal(paise) / Decimal('100')
+
+
+def _expense_from_row(row: sqlite3.Row) -> ExpenseOut:
+    data = dict(row)
+    data['amount'] = _paise_to_amount(data['amount_paise'])
+    del data['amount_paise']
+    return ExpenseOut(**data)
 
 
 def _hash_body(body: ExpenseIn) -> str:
@@ -40,7 +56,7 @@ def create_expense(
             'SELECT * FROM expenses WHERE id = ?',
             (row['expense_id'],),
         ).fetchone()
-        out = ExpenseOut(**dict(expense))
+        out = _expense_from_row(expense)
         return JSONResponse(
             content=json.loads(out.model_dump_json()),
             status_code=200,
@@ -49,10 +65,20 @@ def create_expense(
     expense_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
     conn.execute(
-        'INSERT INTO expenses VALUES (?, ?, ?, ?, ?, ?)',
+        '''
+        INSERT INTO expenses (
+            id,
+            amount_paise,
+            category,
+            description,
+            date,
+            created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        ''',
         (
             expense_id,
-            body.amount,
+            _amount_to_paise(body.amount),
             body.category,
             body.description,
             body.date.isoformat(),
@@ -83,14 +109,15 @@ def list_expenses(
 ) -> list[ExpenseOut]:
     query = 'SELECT * FROM expenses'
     params: list[str] = []
+    filter_category = category.strip() if category else None
 
-    if category:
-        query += ' WHERE category = ?'
-        params.append(category)
+    if filter_category:
+        query += ' WHERE lower(category) = lower(?)'
+        params.append(filter_category)
 
     if sort == 'date':
         direction = 'DESC' if order == 'desc' else 'ASC'
         query += f' ORDER BY date {direction}'
 
     rows = conn.execute(query, params).fetchall()
-    return [ExpenseOut(**dict(r)) for r in rows]
+    return [_expense_from_row(r) for r in rows]

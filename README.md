@@ -23,8 +23,8 @@ Open:
 uv run --extra dev pytest tests/ -v
 ```
 
-All 14 tests cover creation, validation, idempotent retry, conflict
-detection, category filtering, and date sorting.
+All 18 tests cover creation, validation, idempotent retry, conflict
+detection, case-insensitive category filtering, and date sorting.
 
 ## Design Decisions
 
@@ -36,8 +36,19 @@ the dependency footprint minimal and startup fast — both matter on Render
 Free, which has a cold start penalty and a pip-based build step.
 
 Pydantic v2 models handle all input validation declaratively. Invalid
-amounts, empty strings, and malformed dates are rejected at the boundary
-before any database work happens.
+amounts, blank strings, malformed dates, and future expense dates are
+rejected at the boundary before any database work happens.
+
+### Money handling
+
+Amounts are accepted as `Decimal` values with at most two decimal places.
+The database stores them as integer paise (`12.50` rupees becomes `1250`)
+instead of floating-point values. This avoids rounding surprises that can
+appear when storing money as `float`/SQLite `REAL`.
+
+API responses serialize `Decimal` amounts as JSON strings. The frontend
+parses those values for display and totals, while the backend remains the
+source of truth for validation and storage.
 
 ### Idempotency via header + body hash
 
@@ -51,6 +62,11 @@ This makes expense creation safe under slow networks, duplicate clicks,
 and client-side retry buttons without requiring the client to track
 server-assigned IDs. The idempotency table is a simple SQLite table —
 no Redis or external cache needed.
+
+Idempotency only protects one submission attempt. If the user submits the
+same expense details again as a separate action, the frontend generates a
+new idempotency key and the backend creates a new expense. This is
+intentional because two identical-looking expenses can be legitimate.
 
 ### Vanilla JS served from the same FastAPI process
 
@@ -82,6 +98,11 @@ cross-origin complexity.
 server confirmed. Optimistic inserts can diverge from server state,
 especially under the retry scenarios this app is explicitly designed to
 handle.
+
+**No hard duplicate-expense block.** Two separate submissions with the
+same amount, category, description, and date are allowed because they can
+represent two real payments. Idempotency only deduplicates retries of the
+same submission attempt.
 
 **No background workers or persistent disk.** Render Free does not
 provide persistent disk or always-on background jobs. The app is designed

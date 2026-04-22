@@ -1,3 +1,6 @@
+from datetime import date, timedelta
+from decimal import Decimal
+
 import pytest
 
 
@@ -19,7 +22,7 @@ def test_create_expense_returns_201(client):
     )
     assert r.status_code == 201
     data = r.json()
-    assert data['amount'] == 12.50
+    assert Decimal(data['amount']) == Decimal('12.50')
     assert data['category'] == 'food'
     assert data['description'] == 'lunch'
     assert data['date'] == '2026-04-22'
@@ -79,12 +82,56 @@ def test_empty_description_rejected(client):
     assert any('description' in str(e['loc']) for e in body['detail'])
 
 
+def test_blank_category_rejected(client):
+    body = {**VALID_BODY, 'category': '   '}
+    r = client.post(
+        '/expenses',
+        json=body,
+        headers={'Idempotency-Key': 'key-5a'},
+    )
+    assert r.status_code == 422
+
+
+def test_blank_description_rejected(client):
+    body = {**VALID_BODY, 'description': '   '}
+    r = client.post(
+        '/expenses',
+        json=body,
+        headers={'Idempotency-Key': 'key-5b'},
+    )
+    assert r.status_code == 422
+
+
+def test_more_than_two_decimal_places_rejected(client):
+    body = {**VALID_BODY, 'amount': '12.345'}
+    r = client.post(
+        '/expenses',
+        json=body,
+        headers={'Idempotency-Key': 'key-5c'},
+    )
+    assert r.status_code == 422
+
+
 def test_invalid_date_rejected(client):
     body = {**VALID_BODY, 'date': 'not-a-date'}
     r = client.post(
         '/expenses',
         json=body,
         headers={'Idempotency-Key': 'key-6'},
+    )
+    assert r.status_code == 422
+    body = r.json()
+    assert 'detail' in body
+    assert any('date' in str(e['loc']) for e in body['detail'])
+
+
+def test_future_date_rejected(client):
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    body = {**VALID_BODY, 'date': tomorrow}
+    r = client.post(
+        '/expenses',
+        json=body,
+        headers={'Idempotency-Key': 'key-6a'},
     )
     assert r.status_code == 422
     body = r.json()
@@ -150,6 +197,18 @@ def test_category_filter(client):
     data = r.json()
     assert len(data) == 1
     assert data[0]['category'] == 'food'
+
+
+def test_category_filter_is_case_insensitive(client):
+    client.post(
+        '/expenses',
+        json={**VALID_BODY, 'category': 'Food'},
+        headers={'Idempotency-Key': 'g-3a'},
+    )
+    r = client.get('/expenses?category=food')
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]['category'] == 'Food'
 
 
 def test_sort_date_asc(client):

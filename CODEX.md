@@ -51,6 +51,25 @@ workspace before editing and avoid overwriting work from another assistant.
 - Add focused tests for core behavior and risky edge cases.
 - Include a health endpoint for deployable web services.
 
+## Render Free-Tier Review
+
+Treat Render Free as the default deployment target unless the prompt clearly
+requires paid infrastructure. During planning and review, Codex should check
+that the implementation fits these constraints:
+
+- minimal dependency set and no unnecessary heavyweight packages
+- fast startup with no long migrations, scraping, model loading, or batch work
+- no important data stored only on the local filesystem
+- bounded memory usage, request sizes, result sets, and uploaded files
+- no reliance on background workers, cron jobs, SSH access, or persistent disks
+- graceful behavior after restarts or cold starts
+- `/health` endpoint and Render start command are documented
+- deployment is attempted early enough to absorb a 3-6 minute build cycle
+
+Codex should recommend upgrading Render only when the real prompt needs
+always-on availability, persistent disk, higher memory, or an evaluator demo
+where free-tier cold starts are likely to hurt the submission.
+
 ## Review Checklist
 
 - Does the app solve the exact prompt with a complete user flow?

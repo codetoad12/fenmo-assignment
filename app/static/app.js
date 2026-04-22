@@ -39,11 +39,11 @@ function renderExpenses(items) {
     totalEl.textContent = '0.00';
     return;
   }
-  const total = items.reduce((s, e) => s + e.amount, 0);
+  const total = items.reduce((s, e) => s + Number(e.amount), 0);
   totalEl.textContent = total.toFixed(2);
   const rows = items.map(e => `
     <tr>
-      <td>${e.amount.toFixed(2)}</td>
+      <td>${Number(e.amount).toFixed(2)}</td>
       <td>${escapeHtml(e.category)}</td>
       <td>${escapeHtml(e.description)}</td>
       <td>${escapeHtml(formatDate(e.date))}</td>
@@ -92,7 +92,10 @@ loadExpenses();
   document.getElementById(id).addEventListener('input', resetKey);
 });
 
-document.getElementById('date').valueAsDate = new Date();
+const dateInput = document.getElementById('date');
+const today = new Date().toISOString().slice(0, 10);
+dateInput.max = today;
+dateInput.value = today;
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
