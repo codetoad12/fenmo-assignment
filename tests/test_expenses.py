@@ -35,6 +35,9 @@ def test_zero_amount_rejected(client):
         headers={'Idempotency-Key': 'key-2'},
     )
     assert r.status_code == 422
+    body = r.json()
+    assert 'detail' in body
+    assert any('amount' in str(e['loc']) for e in body['detail'])
 
 
 def test_negative_amount_rejected(client):
@@ -45,6 +48,9 @@ def test_negative_amount_rejected(client):
         headers={'Idempotency-Key': 'key-3'},
     )
     assert r.status_code == 422
+    body = r.json()
+    assert 'detail' in body
+    assert any('amount' in str(e['loc']) for e in body['detail'])
 
 
 def test_empty_category_rejected(client):
@@ -55,6 +61,9 @@ def test_empty_category_rejected(client):
         headers={'Idempotency-Key': 'key-4'},
     )
     assert r.status_code == 422
+    body = r.json()
+    assert 'detail' in body
+    assert any('category' in str(e['loc']) for e in body['detail'])
 
 
 def test_empty_description_rejected(client):
@@ -65,6 +74,9 @@ def test_empty_description_rejected(client):
         headers={'Idempotency-Key': 'key-5'},
     )
     assert r.status_code == 422
+    body = r.json()
+    assert 'detail' in body
+    assert any('description' in str(e['loc']) for e in body['detail'])
 
 
 def test_invalid_date_rejected(client):
@@ -75,6 +87,9 @@ def test_invalid_date_rejected(client):
         headers={'Idempotency-Key': 'key-6'},
     )
     assert r.status_code == 422
+    body = r.json()
+    assert 'detail' in body
+    assert any('date' in str(e['loc']) for e in body['detail'])
 
 
 def test_idempotent_retry_returns_original(client):
