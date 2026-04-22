@@ -2,11 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Expense Tracker</title>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <h1>Expense Tracker</h1>
+  <div class="container">
+    <h1>Expense Tracker</h1>
+
+    <section class="form-section">
+      <h2>Add Expense</h2>
+      <form id="expense-form">
+        <div class="field">
+          <label for="amount">Amount</label>
+          <input id="amount" name="amount" type="number"
+                 step="0.01" min="0.01" required>
+        </div>
+        <div class="field">
+          <label for="category">Category</label>
+          <input id="category" name="category" type="text" required>
+        </div>
+        <div class="field">
+          <label for="description">Description</label>
+          <input id="description" name="description" type="text" required>
+        </div>
+        <div class="field">
+          <label for="date">Date</label>
+          <input id="date" name="date" type="date" required>
+        </div>
+        <button type="submit" id="submit-btn">Add Expense</button>
+        <p id="form-error" class="error hidden"></p>
+      </form>
+    </section>
+
+    <section class="list-section">
+      <div class="controls">
+        <input id="filter-category" type="text"
+               placeholder="Filter by category">
+        <select id="sort-order">
+          <option value="desc">Newest first</option>
+          <option value="asc">Oldest first</option>
+        </select>
+      </div>
+      <p class="total">Total: <span id="total-amount">0.00</span></p>
+      <div id="expense-list">
+        <p class="loading">Loading...</p>
+      </div>
+    </section>
+  </div>
   <script src="/static/app.js" defer></script>
 </body>
 </html>
