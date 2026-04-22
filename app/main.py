@@ -1,11 +1,17 @@
 import sqlite3
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .database import DB_PATH, init_db
 from .expenses import router
+
+TEMPLATES_DIR = Path(__file__).parent / 'templates'
+STATIC_DIR = Path(__file__).parent / 'static'
 
 
 @asynccontextmanager
@@ -22,15 +28,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 app.include_router(router)
 
 
 @app.get('/')
-def read_root() -> dict[str, str]:
-    return {
-        'message': 'Fenmo assessment app is ready',
-        'status': 'ok',
-    }
+def read_root() -> FileResponse:
+    return FileResponse(TEMPLATES_DIR / 'index.html')
 
 
 @app.get('/health')
