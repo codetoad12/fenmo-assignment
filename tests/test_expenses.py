@@ -92,6 +92,11 @@ def test_invalid_date_rejected(client):
     assert any('date' in str(e['loc']) for e in body['detail'])
 
 
+def test_missing_idempotency_key_rejected(client):
+    r = client.post('/expenses', json=VALID_BODY)
+    assert r.status_code == 422
+
+
 def test_idempotent_retry_returns_original(client):
     headers = {'Idempotency-Key': 'idem-1'}
     r1 = client.post('/expenses', json=VALID_BODY, headers=headers)
