@@ -1,0 +1,91 @@
+import hashlib
+import json
+import sqlite3
+import uuid
+from datetime import datetime, timezone
+from typing import Annotated, Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException
+
+from .database import get_connection
+from .models import ExpenseIn, ExpenseOut
+
+router = APIRouter()
+
+
+def _hash_body(body: ExpenseIn) -> str:
+    canonical = json.dumps(
+        body.model_dump(mode='json'), sort_keys=True
+    )
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+@router.post('/expenses', response_model=ExpenseOut, status_code=201)
+def create_expense(
+    body: ExpenseIn,
+    idempotency_key: Annotated[str, Header()],
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> ExpenseOut:
+    body_hash = _hash_body(body)
+    row = conn.execute(
+        'SELECT * FROM idempotency_keys WHERE key = ?',
+        (idempotency_key,),
+    ).fetchone()
+
+    if row is not None:
+        if row['body_hash'] != body_hash:
+            raise HTTPException(status_code=409, detail='Conflict')
+        expense = conn.execute(
+            'SELECT * FROM expenses WHERE id = ?',
+            (row['expense_id'],),
+        ).fetchone()
+        return ExpenseOut(**dict(expense))
+
+    expense_id = str(uuid.uuid4())
+    created_at = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        'INSERT INTO expenses VALUES (?, ?, ?, ?, ?, ?)',
+        (
+            expense_id,
+            body.amount,
+            body.category,
+            body.description,
+            body.date.isoformat(),
+            created_at,
+        ),
+    )
+    conn.execute(
+        'INSERT INTO idempotency_keys VALUES (?, ?, ?)',
+        (idempotency_key, body_hash, expense_id),
+    )
+    conn.commit()
+    return ExpenseOut(
+        id=expense_id,
+        amount=body.amount,
+        category=body.category,
+        description=body.description,
+        date=body.date,
+        created_at=created_at,
+    )
+
+
+@router.get('/expenses', response_model=list[ExpenseOut])
+def list_expenses(
+    category: Optional[str] = None,
+    sort: Optional[str] = None,
+    order: Optional[str] = 'asc',
+    conn: sqlite3.Connection = Depends(get_connection),
+) -> list[ExpenseOut]:
+    query = 'SELECT * FROM expenses'
+    params: list[str] = []
+
+    if category:
+        query += ' WHERE category = ?'
+        params.append(category)
+
+    if sort == 'date':
+        direction = 'DESC' if order == 'desc' else 'ASC'
+        query += f' ORDER BY date {direction}'
+
+    rows = conn.execute(query, params).fetchall()
+    return [ExpenseOut(**dict(r)) for r in rows]
