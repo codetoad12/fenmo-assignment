@@ -4,6 +4,12 @@ A focused expense tracker built for the Fenmo SDE technical assessment.
 The goal was a working, deployable application with production-quality
 reliability behavior — not maximum feature breadth.
 
+## Submission Links
+
+Live application: https://fenmo-assignment-p3ad.onrender.com/
+
+GitHub repository: https://github.com/codetoad12/fenmo-assignment
+
 ## Local Setup
 
 ```bash
