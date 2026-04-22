@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import JSONResponse
 
 from .database import get_connection
 from .models import ExpenseIn, ExpenseOut
@@ -39,7 +40,11 @@ def create_expense(
             'SELECT * FROM expenses WHERE id = ?',
             (row['expense_id'],),
         ).fetchone()
-        return ExpenseOut(**dict(expense))
+        out = ExpenseOut(**dict(expense))
+        return JSONResponse(
+            content=json.loads(out.model_dump_json()),
+            status_code=200,
+        )
 
     expense_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
