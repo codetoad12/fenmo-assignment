@@ -1,0 +1,2 @@
+"""Fenmo assessment application."""
+
