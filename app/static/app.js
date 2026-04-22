@@ -10,6 +10,15 @@ const formError = document.getElementById('form-error');
 
 let idempotencyKey = crypto.randomUUID();
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function resetKey() {
   idempotencyKey = crypto.randomUUID();
 }
@@ -35,10 +44,10 @@ function renderExpenses(items) {
   const rows = items.map(e => `
     <tr>
       <td>${e.amount.toFixed(2)}</td>
-      <td>${e.category}</td>
-      <td>${e.description}</td>
-      <td>${formatDate(e.date)}</td>
-      <td>${formatDateTime(e.created_at)}</td>
+      <td>${escapeHtml(e.category)}</td>
+      <td>${escapeHtml(e.description)}</td>
+      <td>${escapeHtml(formatDate(e.date))}</td>
+      <td>${escapeHtml(formatDateTime(e.created_at))}</td>
     </tr>
   `).join('');
   list.innerHTML = `
@@ -66,8 +75,11 @@ async function loadExpenses() {
     const items = await res.json();
     renderExpenses(items);
   } catch (err) {
-    list.innerHTML =
-      `<p class="error">Failed to load expenses: ${err.message}</p>`;
+    const p = document.createElement('p');
+    p.className = 'error';
+    p.textContent = `Failed to load expenses: ${err.message}`;
+    list.innerHTML = '';
+    list.appendChild(p);
   }
 }
 
